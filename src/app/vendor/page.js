@@ -18,6 +18,7 @@ export default function VendorDashboard() {
   const [vendorBalance, setVendorBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     // Fetch vendor data and transactions when component mounts
@@ -73,41 +74,42 @@ export default function VendorDashboard() {
 
   const handlePayment = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (!studentData || !paymentAmount || !password) {
+      setError('Please fill all fields and scan student QR code');
+      return;
+    }
+
     try {
-      const amount = parseFloat(paymentAmount);
-      if (isNaN(amount) || amount <= 0) {
-        setError('Please enter a valid amount');
-        return;
-      }
+      setLoading(true);
+      setError('');
 
       const response = await fetch(`${API_URL}/process_student_payment`, {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           student_id: studentData.student_id,
           vendor_id: VENDOR_ID,
-          amount: amount,
-          description: description
+          amount: parseFloat(paymentAmount),
+          description: description,
+          password: password
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to process payment');
+        throw new Error(data.detail || 'Failed to process payment');
       }
 
-      const result = await response.json();
-      setSuccess(`Payment processed successfully! Student's new balance: ₹${result.student_balance}`);
-      setVendorBalance(result.vendor_balance);
-      await fetchVendorData();
-      setStudentData(null);
+      setSuccess('Payment processed successfully!');
       setPaymentAmount('');
       setDescription('');
+      setPassword('');
+      setStudentData(null);
       setMode('select');
+      await fetchVendorData();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -290,6 +292,18 @@ export default function VendorDashboard() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Student Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+                    required
                   />
                 </div>
                 <button
