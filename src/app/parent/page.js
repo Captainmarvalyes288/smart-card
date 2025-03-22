@@ -149,24 +149,34 @@ export default function ParentDashboard() {
         currency: data.currency,
         name: 'School Payment System',
         description: 'Wallet Recharge',
-        order_id: data.order_id,
+        order_id: data.id,
         handler: async function (response) {
           try {
+            console.log('Payment successful, verifying...', response); // Debug log
+            
             const verifyResponse = await fetch(`${API_URL}/verify_recharge_payment`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                ...response,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
                 student_id: studentId,
-                vendor_id: vendorData.vendor_id
+                vendor_id: vendorData.vendor_id,
+                amount: amount
               }),
             });
 
             if (!verifyResponse.ok) {
-              throw new Error('Payment verification failed');
+              const errorData = await verifyResponse.text();
+              console.error('Verification failed:', errorData); // Debug log
+              throw new Error(`Payment verification failed: ${errorData}`);
             }
+
+            const verificationResult = await verifyResponse.json();
+            console.log('Verification successful:', verificationResult); // Debug log
 
             setSuccess('Payment successful! Wallet has been recharged.');
             setAmount('');
@@ -174,7 +184,8 @@ export default function ParentDashboard() {
             setVendorData(null);
             setMode('select');
           } catch (err) {
-            setError('Payment verification failed. Please contact support.');
+            console.error('Payment verification error:', err); // Debug log
+            setError(err.message || 'Payment verification failed. Please contact support.');
           }
         },
         prefill: {
